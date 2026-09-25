@@ -22,6 +22,8 @@ spec:
       labels:
         tier: php
     spec:
+      imagePullSecrets:
+      - name: tbsacr-pull
       containers:
       - image: tbsacr.azurecr.io/performance_php:latest
         imagePullPolicy: Always

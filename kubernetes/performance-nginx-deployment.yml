@@ -23,6 +23,8 @@ spec:
       labels:
         tier: frontend
     spec:
+      imagePullSecrets:
+      - name: tbsacr-pull
       containers:
       - image: tbsacr.azurecr.io/performance_nginx:latest
         imagePullPolicy: Always
