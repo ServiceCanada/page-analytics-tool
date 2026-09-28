@@ -2,39 +2,47 @@ name: Deploy to AKS Cluster
 on:
   push:
     branches:
-    - master
-  pull_request:
-    branches:
-    - master
+    - main
+# id-token lets the run request a short-lived OIDC token to present to
+# Azure, in place of a stored service principal secret.
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
     - name: Decrypt large secret
       run: ./docker/performance_php/secrets_enc/decrypt.sh
       env:
         SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
-    
-    - uses: Azure/docker-login@v1
+
+    # Federated credential, no stored secret. Azure trusts GitHub's signed
+    # token for this repository and branch.
+    - uses: azure/login@v2
       with:
-        login-server: tbsacr.azurecr.io
-        username: ${{ secrets.ACR_USERNAME }}
-        password: ${{ secrets.ACR_PASSWORD }}
-    
+        client-id: 70bcde59-55bf-444d-9067-40fcfe9d986d
+        tenant-id: 199ad632-90ad-47fd-9234-53a669588b3f
+        subscription-id: c2af625a-bac8-4e7d-9c7c-1bead1c2572e
+
+    # Authenticates docker to the registry using the session above.
+    - name: Log in to the container registry
+      run: az acr login --name tbsacr
+
     - run: |
         docker build -f ./docker/performance_php/Dockerfile . -t tbsacr.azurecr.io/performance_php:${{ github.sha }}
         docker push tbsacr.azurecr.io/performance_php:${{ github.sha }}
         docker build -f ./docker/performance_nginx/Dockerfile . -t tbsacr.azurecr.io/performance_nginx:${{ github.sha }}
         docker push tbsacr.azurecr.io/performance_nginx:${{ github.sha }}
-      
+
     # Set the target AKS cluster.
-    - uses: Azure/aks-set-context@v1
+    - uses: Azure/aks-set-context@v4
       with:
-        creds: '${{ secrets.AZURE_CREDENTIALS }}'
         cluster-name: tbs-prod-aks
         resource-group: tbs-prod-rg
-            
+
     - uses: Azure/k8s-deploy@v1
       with:
         manifests: |
@@ -54,4 +62,4 @@ jobs:
         images: |
           tbsacr.azurecr.io/performance_nginx:${{ github.sha }}
         namespace: |
-          performance        
+          performance
