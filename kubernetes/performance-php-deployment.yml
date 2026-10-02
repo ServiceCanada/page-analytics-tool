@@ -22,6 +22,8 @@ spec:
       labels:
         tier: php
     spec:
+      imagePullSecrets:
+      - name: tbsacr-pull
       containers:
       - image: tbsacr.azurecr.io/performance_php:latest
         imagePullPolicy: Always
@@ -30,9 +32,9 @@ spec:
             command:
             - php-fpm-healthcheck
           failureThreshold: 3
-          periodSeconds: 5
+          periodSeconds: 10
           successThreshold: 1
-          timeoutSeconds: 1
+          timeoutSeconds: 5
         name: performance-php
         ports:
         - containerPort: 9000
@@ -46,7 +48,7 @@ spec:
           initialDelaySeconds: 1
           periodSeconds: 5
           successThreshold: 1
-          timeoutSeconds: 1
+          timeoutSeconds: 5
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File

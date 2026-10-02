@@ -1,0 +1,54 @@
+# Validates that a pull request would build and deploy cleanly, without
+# touching the cluster. The deploy itself runs from main.yml on push to
+# main, after review.
+name: Validate pull request
+
+on:
+  pull_request:
+    branches:
+    - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    # Secrets are unavailable to pull requests from forks, so the image
+    # build is limited to branches pushed to this repository.
+    - name: Decrypt large secret
+      if: github.event.pull_request.head.repo.full_name == github.repository
+      run: ./docker/performance_php/secrets_enc/decrypt.sh
+      env:
+        SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+
+    # Build only. Nothing is pushed to the registry and no image tagged
+    # here can reach the cluster.
+    - name: Build php image
+      if: github.event.pull_request.head.repo.full_name == github.repository
+      run: |
+        docker build -f ./docker/performance_php/Dockerfile . \
+          -t performance_php:${{ github.sha }}
+
+    - name: Build nginx image
+      if: github.event.pull_request.head.repo.full_name == github.repository
+      run: |
+        docker build -f ./docker/performance_nginx/Dockerfile . \
+          -t performance_nginx:${{ github.sha }}
+
+    # Validates the manifests main.yml deploys against the Kubernetes
+    # schemas offline. kubectl dry-run cannot be used here: it needs a
+    # cluster to fetch schemas from, and this workflow has no cluster access.
+    - name: Validate Kubernetes manifests
+      run: |
+        curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+          | tar xz kubeconform
+        ./kubeconform -strict -summary \
+          kubernetes/performance-php-deployment.yml \
+          kubernetes/performance-php-service.yml \
+          kubernetes/performance-nginx-configmap.yml \
+          kubernetes/performance-nginx-deployment.yml \
+          kubernetes/performance-nginx-service.yml
