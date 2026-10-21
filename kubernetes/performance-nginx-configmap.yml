@@ -49,6 +49,12 @@ data:
           # Make site accessible from http://drupal.dev;
           server_name _;
 
+          # PHP2Shell (CVE-2026-109618/109619) is triggered through PHP's
+          # multipart parser. The app only sends JSON, so refuse multipart.
+          if ($content_type ~* "multipart/form-data") {
+              return 415;
+          }
+
           location /robots.txt {
            add_header Content-Type text/plain;
            return 200 "User-agent: *\nDisallow: /\n";
