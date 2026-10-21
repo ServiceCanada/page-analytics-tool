@@ -1,0 +1,14 @@
+# Opens a pull request when a newer PHP 8.4 image is published, so security
+# releases are picked up instead of the image going stale.
+version: 2
+updates:
+- package-ecosystem: docker
+  directory: /docker/performance_php
+  schedule:
+    interval: daily
+  ignore:
+  # Stay on 8.4 patch releases. Moving to 8.5 is a deliberate upgrade.
+  - dependency-name: php
+    update-types:
+    - version-update:semver-major
+    - version-update:semver-minor
