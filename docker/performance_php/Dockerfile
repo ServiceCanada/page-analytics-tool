@@ -1,4 +1,4 @@
-FROM php:8.4.27-fpm-alpine
+FROM php:8.4.28-fpm-alpine
 
 # PHP 8.4.27 is the first 8.4 release patched for PHP2Shell
 # (CVE-2026-109618/109619). Keep this tag on a current security release.
